@@ -1,0 +1,31 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+logs/
+*.log
+
+# macOS
+__MACOSX/
+.DS_Store
+
+# VS Code
+# Large datasets
+data/inventory.db
+data/sales.csv
+data/purchases.csv
+data/begin_inventory.csv
+data/end_inventory.csv
+
+inventory.db
+your_database.db
+# Datasets
+data/*.csv
+
+# Databases
+data/*.db
+*.db

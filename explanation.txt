@@ -1,0 +1,1338 @@
+# =============================================================================
+#                    EXPLORATORY DATA ANALYSIS (EDA)
+# =============================================================================
+#
+# Before starting EDA, we completed an ETL (Extract, Transform, Load) pipeline.
+#
+# What we did previously:
+#
+# 1. Extract
+#    - Loaded data from multiple SQLite tables:
+#         • purchases
+#         • purchase_prices
+#         • sales
+#         • vendor_invoice
+#    - Used SQL JOINs, GROUP BY, and aggregations to merge these tables into
+#      a single consolidated vendor sales summary.
+#
+# 2. Transform
+#    - Cleaned the dataset by:
+#         • Converting Volume to float
+#         • Filling missing values with 0
+#         • Removing unwanted spaces from text columns
+#
+#    - Performed Feature Engineering by creating new business metrics:
+#         • GrossProfit
+#         • ProfitMargin
+#         • StockTurnover
+#         • SalesToPurchaseRatio
+#
+# 3. Load
+#    - Saved the cleaned and transformed dataset back into SQLite as:
+#         vendor_sales_summary_original
+#
+# ---------------------------------------------------------------------------
+# What is EDA?
+#
+# Exploratory Data Analysis (EDA) is the process of understanding the
+# processed dataset before building dashboards or predictive models.
+#
+# During EDA we will:
+#
+# • Understand the structure of the data
+# • Check data types and missing values
+# • Study the distribution of numerical features
+# • Analyze categorical variables
+# • Detect outliers and anomalies
+# • Find relationships between variables
+# • Generate business insights and trends
+#
+# The objective of EDA is to ensure data quality, validate the results of
+# our ETL pipeline, and discover meaningful patterns that can support
+# business decision-making.
+# =============================================================================
+
+
+
+
+
+# Get the names of all numerical columns in the DataFrame
+numerical_cols = df.select_dtypes(include=np.number).columns
+
+# Create a blank figure of size 15x10 inches to hold all plots
+plt.figure(figsize=(15, 10))
+
+# Loop through each numerical column along with its index
+for i, col in enumerate(numerical_cols):
+
+    # Create the (i+1)th subplot in a 4x4 grid
+    plt.subplot(4, 4, i + 1)
+
+    # Plot the histogram with a KDE (smooth density) curve using 30 bins
+    sns.histplot(df[col], kde=True, bins=30)
+
+    # Set the current column name as the title of the plot
+    plt.title(col)
+
+# Automatically adjust spacing so plots don't overlap
+plt.tight_layout()
+
+# Display all the generated plots
+plt.show()
+
+
+
+
+
+# ============================================================
+# Summary Statistics - Key Insights
+# ============================================================
+
+# ----------------------------
+# 1. Negative & Zero Values
+# ----------------------------
+
+# GrossProfit:
+# Minimum GrossProfit is -52,002.78, indicating that some products
+# were sold at a loss (selling price < total purchase cost).
+
+# ProfitMargin:
+# Minimum value is -∞ (negative infinity), which occurs when
+# TotalSalesDollars is 0 while GrossProfit is negative.
+# This indicates purchased inventory that generated no sales.
+
+# TotalSalesQuantity & TotalSalesDollars:
+# Minimum values are 0, showing that certain products were purchased
+# but never sold. These may represent slow-moving or dead inventory.
+
+# ----------------------------
+# 2. Outlier Detection
+# ----------------------------
+
+# PurchasePrice & ActualPrice:
+# Maximum values (5681.81 and 7499.99) are much larger than their means,
+# indicating the presence of premium/high-value products.
+
+# FreightCost:
+# Values range from 0.09 to 257,032.07.
+# This large spread suggests significant variation in shipping costs,
+# possibly due to bulk shipments or vendor-specific logistics.
+
+# StockTurnover:
+# Values range from 0 to 274.5.
+# - StockTurnover = 0  -> Inventory has not been sold.
+# - StockTurnover ≈ 1  -> Inventory purchased is almost fully sold.
+# - StockTurnover > 1  -> More units were sold than purchased during
+#                         the analysis period, likely because sales
+#                         came from existing/older inventory.
+
+# ----------------------------
+# 3. Business Takeaways
+# ----------------------------
+
+# • Some vendors/products are generating losses.
+# • Certain products remain unsold, increasing inventory holding costs.
+# • Premium products create strong price outliers.
+# • Freight costs vary significantly across vendors.
+# • Extremely high stock turnover values may indicate efficient selling
+#   or sales fulfilled using previously available inventory.
+
+
+
+
+# =============================================================================
+# Advanced Count Plot Analysis
+# =============================================================================
+#
+# Objective:
+# Visualize the most frequent categories in each categorical column to
+# understand which vendors and products dominate the dataset.
+#
+# Why Count Plot?
+# A count plot displays how many times each category appears in the data.
+# Since some columns contain hundreds or thousands of unique values,
+# plotting every category would make the graph unreadable.
+# Therefore, only the Top 10 most frequent categories are visualized.
+#
+# Workflow:
+# 1. Select the categorical columns for analysis.
+# 2. Create a large figure with two subplots.
+# 3. Loop through each categorical column.
+# 4. Count the frequency of every unique category.
+# 5. Select only the Top 10 most frequent categories.
+# 6. Draw a professional horizontal bar chart.
+# 7. Add axis labels, titles, and count labels on each bar.
+# 8. Display the final visualization.
+#
+# Business Insights:
+# • Identify vendors with the highest number of transactions.
+# • Identify the most frequently purchased products.
+# • Detect whether the data is concentrated among a few vendors/products
+#   or evenly distributed.
+# • Helps discover dominant suppliers and popular inventory items.
+#
+# Important Functions Used:
+# • enumerate()      -> Returns both the index and value while looping.
+# • value_counts()   -> Counts occurrences of each unique category.
+# • head(10)         -> Selects only the Top 10 categories.
+# • barplot()        -> Creates a horizontal bar chart.
+# • bar_label()      -> Displays count values on each bar.
+# • suptitle()       -> Adds one common title to the entire figure.
+# • tight_layout()   -> Prevents overlapping of plots and labels.
+# =============================================================================
+
+
+# =============================================================================
+# sns.set_theme(style="whitegrid", palette="viridis")
+# Sets the default appearance for all Seaborn plots.
+# style="whitegrid" gives the plots a white background with light grid lines.
+# palette="viridis" uses the Viridis color palette for a professional look.
+# This only needs to be called once and affects all subsequent Seaborn plots.
+# =============================================================================
+
+# =============================================================================
+# fig, axes = plt.subplots(1, 2, figsize=(18, 8))
+# Creates a figure (fig) and two plotting areas (axes).
+# (1, 2) means create 1 row and 2 columns of plots.
+# figsize=(18,8) specifies the overall figure size in inches.
+# fig represents the complete canvas, while axes stores each subplot.
+# =============================================================================
+
+# =============================================================================
+# for i, col in enumerate(categorical_cols):
+# Starts a loop over every categorical column.
+# enumerate() returns both the index (i) and the column name (col).
+# i is later used to decide which subplot to draw on.
+# col contains the current column name such as VendorName or Description.
+# =============================================================================
+
+# =============================================================================
+# top10 = df[col].value_counts().head(10)
+# Selects the current column from the DataFrame.
+# value_counts() counts how many times each unique category appears.
+# Results are automatically sorted in descending order.
+# head(10) keeps only the Top 10 most frequent categories.
+# This keeps the visualization clean and readable.
+# =============================================================================
+
+# =============================================================================
+# sns.barplot(
+#     x=top10.values,
+#     y=top10.index,
+#     ax=axes[i],
+#     hue=top10.index,
+#     palette="viridis",
+#     legend=False
+# )
+#
+# Creates a horizontal bar chart.
+# x=top10.values supplies the count (bar length).
+# y=top10.index supplies the category names.
+# ax=axes[i] tells Seaborn which subplot to draw on.
+# hue=top10.index assigns a different color to each category.
+# palette="viridis" applies the Viridis colour palette.
+# legend=False removes the unnecessary legend since category names
+# are already shown on the y-axis.
+# =============================================================================
+
+# =============================================================================
+# axes[i].set_title(
+#     f"Top 10 {col}",
+#     fontsize=16,
+#     fontweight="bold",
+#     pad=15
+# )
+#
+# Sets the title for the current subplot.
+# f-string automatically inserts the current column name.
+# fontsize controls the title size.
+# fontweight="bold" makes the title stand out.
+# pad adds spacing between the title and the graph.
+# =============================================================================
+
+# =============================================================================
+# axes[i].set_xlabel("Count", fontsize=12)
+# Labels the x-axis as "Count".
+# Indicates that the horizontal axis represents frequency.
+# fontsize controls the size of the axis label.
+# =============================================================================
+
+# =============================================================================
+# axes[i].set_ylabel(col, fontsize=12)
+# Labels the y-axis using the current column name.
+# The label changes automatically for every iteration.
+# fontsize controls the size of the label.
+# =============================================================================
+
+# =============================================================================
+# for container in axes[i].containers:
+# Loops through every bar container in the current subplot.
+# A container is an object that stores all the bars in the chart.
+# This loop allows labels to be added to every individual bar.
+# =============================================================================
+
+# =============================================================================
+# axes[i].bar_label(
+#     container,
+#     fmt="%d",
+#     padding=4,
+#     fontsize=10,
+#     fontweight="bold"
+# )
+#
+# Adds numerical labels on every bar.
+# container specifies which bars receive labels.
+# fmt="%d" displays values as whole numbers.
+# padding adds space between the label and the end of the bar.
+# fontsize changes the label size.
+# fontweight="bold" makes labels easier to read.
+# =============================================================================
+
+# =============================================================================
+# plt.suptitle(
+#     "Top 10 Categories in Vendor Sales Summary",
+#     fontsize=20,
+#     fontweight="bold",
+#     y=1.02
+# )
+#
+# Adds one common title for the entire figure.
+# suptitle() is called a "super title".
+# fontsize controls the title size.
+# fontweight makes the title bold.
+# y moves the title upward to avoid overlapping with subplot titles.
+# =============================================================================
+
+# =============================================================================
+# plt.tight_layout()
+# Automatically adjusts spacing between plots, titles and labels.
+# Prevents graphs from overlapping each other.
+# Usually called before plt.show().
+# =============================================================================
+
+# =============================================================================
+# plt.show()
+# Renders and displays the completed figure.
+# Until this line executes, the plots exist only in memory.
+# This is the final step that shows all graphs on the screen.
+# =============================================================================
+
+# =============================================================================
+# plt.figure(figsize=(12, 8))
+# Creates a new figure (canvas) where the heatmap will be drawn.
+# figsize=(12,8) sets the width to 12 inches and height to 8 inches.
+# A larger figure makes the correlation values and feature names easier to read.
+# =============================================================================
+
+# =============================================================================
+# correlation_matrix = df[numerical_cols].corr()
+# Selects only the numerical columns from the DataFrame.
+# numerical_cols is a list containing the names of all numeric features.
+# corr() computes the Pearson Correlation Coefficient between every pair
+# of numerical columns.
+# The result is a square correlation matrix where:
+#     +1  -> Perfect Positive Correlation
+#      0  -> No Linear Correlation
+#     -1  -> Perfect Negative Correlation
+# The matrix is symmetric because Correlation(A,B) = Correlation(B,A).
+# =============================================================================
+
+# =============================================================================
+# sns.heatmap(
+#     correlation_matrix,
+#     annot=True,
+#     fmt=".2f",
+#     cmap="coolwarm",
+#     linewidths=0.5
+# )
+#
+# Creates a heatmap to visualize the correlation matrix.
+# correlation_matrix is the data that will be visualized.
+# annot=True writes the numerical correlation value inside every cell.
+# fmt=".2f" formats the correlation values to 2 decimal places.
+# cmap="coolwarm" uses a diverging colour map where:
+#     Dark Red   -> Strong Positive Correlation (+1)
+#     White      -> Near Zero Correlation (0)
+#     Dark Blue  -> Strong Negative Correlation (-1)
+# linewidths=0.5 adds thin borders between cells to improve readability.
+# Heatmaps make it easy to identify highly correlated features at a glance.
+# =============================================================================
+
+# =============================================================================
+# plt.title("Correlation Heatmap")
+# Adds a title to the figure.
+# The title describes what the visualization represents.
+# =============================================================================
+
+# =============================================================================
+# plt.show()
+# Displays the completed heatmap.
+# Until plt.show() is executed, the figure exists only in memory.
+# This is the final step that renders the visualization.
+# =============================================================================
+
+
+# =============================================================================
+# What is Correlation?
+# Correlation measures the strength and direction of the relationship
+# between two numerical variables.
+#
+# Correlation Value Interpretation:
+# +1.00  -> Perfect Positive Correlation
+# +0.70 to +0.99 -> Strong Positive Correlation
+# +0.30 to +0.69 -> Moderate Positive Correlation
+# -0.29 to +0.29 -> Weak or No Correlation
+# -0.30 to -0.69 -> Moderate Negative Correlation
+# -0.70 to -0.99 -> Strong Negative Correlation
+# -1.00  -> Perfect Negative Correlation
+# =============================================================================
+
+# =============================================================================
+# Why do we perform Correlation Analysis?
+# • Identify relationships between numerical variables.
+# • Detect multicollinearity (features carrying similar information).
+# • Select useful features for Machine Learning models.
+# • Understand which business metrics influence each other.
+# • Discover hidden patterns that are difficult to observe from raw data.
+# =============================================================================
+
+# =============================================================================
+# Business Insights from this Heatmap:
+# • High positive correlation means two variables increase together.
+# • High negative correlation means when one variable increases,
+#   the other decreases.
+# • Near-zero correlation means the variables have little or no
+#   linear relationship.
+# • Variables with very high correlation (>0.8) may be redundant and
+#   can sometimes be removed during feature selection.
+# =============================================================================
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Professional plotting style
+sns.set_theme(style="white")
+
+# Compute correlation matrix
+correlation_matrix = df[numerical_cols].corr()
+
+# Create figure
+plt.figure(figsize=(14, 10))
+
+# Plot heatmap
+sns.heatmap(
+    correlation_matrix,
+    annot=True,
+    fmt=".2f",
+    cmap="RdBu_r",
+    center=0,
+    square=True,
+    linewidths=0.8,
+    linecolor="white",
+    annot_kws={
+        "size": 10,
+        "weight": "bold"
+    },
+    cbar_kws={
+        "label": "Correlation Coefficient",
+        "shrink": 0.85
+    }
+)
+
+# Title
+plt.title(
+    "Correlation Matrix of Vendor Sales Features",
+    fontsize=20,
+    fontweight="bold",
+    pad=20
+)
+
+# Axis formatting
+plt.xticks(rotation=45, ha="right", fontsize=10)
+plt.yticks(rotation=0, fontsize=10)
+
+# Improve spacing
+plt.tight_layout()
+
+# Display
+plt.show()
+
+# =============================================================================
+# import matplotlib.pyplot as plt
+# Imports Matplotlib's pyplot module.
+# pyplot provides functions to create, customize and display plots.
+# 'plt' is the commonly used alias for pyplot.
+# =============================================================================
+
+# =============================================================================
+# import seaborn as sns
+# Imports the Seaborn library.
+# Seaborn is built on top of Matplotlib and provides better-looking,
+# statistical visualizations with much less code.
+# 'sns' is the standard alias used for Seaborn.
+# =============================================================================
+
+# =============================================================================
+# sns.set_theme(style="white")
+# Applies a professional visual theme to all Seaborn plots.
+# style="white" removes the background grid and creates a clean,
+# minimalistic appearance suitable for reports and dashboards.
+# The theme remains active for all plots created afterwards.
+# =============================================================================
+
+# =============================================================================
+# correlation_matrix = df[numerical_cols].corr()
+# Selects only the numerical columns from the DataFrame.
+# numerical_cols contains the names of all numeric features.
+# corr() computes the Pearson Correlation Coefficient between every pair
+# of numerical variables.
+# The output is a square matrix where:
+#     +1.00 -> Perfect Positive Correlation
+#      0.00 -> No Linear Correlation
+#     -1.00 -> Perfect Negative Correlation
+# Since Correlation(A,B) = Correlation(B,A),
+# the correlation matrix is always symmetric.
+# =============================================================================
+
+# =============================================================================
+# plt.figure(figsize=(14, 10))
+# Creates a new figure (canvas) for the heatmap.
+# figsize=(14,10) specifies the width and height of the figure in inches.
+# A larger figure prevents feature names and annotations from overlapping.
+# =============================================================================
+
+# =============================================================================
+# sns.heatmap(
+#     correlation_matrix,
+#     annot=True,
+#     fmt=".2f",
+#     cmap="RdBu_r",
+#     center=0,
+#     square=True,
+#     linewidths=0.8,
+#     linecolor="white",
+#     annot_kws={
+#         "size":10,
+#         "weight":"bold"
+#     },
+#     cbar_kws={
+#         "label":"Correlation Coefficient",
+#         "shrink":0.85
+#     }
+# )
+#
+# Creates a heatmap from the correlation matrix.
+#
+# correlation_matrix
+# Supplies the data that will be visualized.
+#
+# annot=True
+# Displays the numerical correlation value inside every cell.
+#
+# fmt=".2f"
+# Formats the correlation values to exactly two decimal places.
+#
+# cmap="RdBu_r"
+# Uses the Red-Blue reversed colour map.
+#     Dark Red  -> Strong Positive Correlation
+#     White     -> Correlation close to Zero
+#     Dark Blue -> Strong Negative Correlation
+# This colour map makes positive and negative relationships
+# very easy to distinguish.
+#
+# center=0
+# Places zero exactly at the center of the colour scale.
+# This ensures positive correlations use warm colours
+# while negative correlations use cool colours.
+#
+# square=True
+# Makes every heatmap cell perfectly square,
+# producing a cleaner and more professional layout.
+#
+# linewidths=0.8
+# Adds borders between adjacent cells.
+# This improves readability by clearly separating features.
+#
+# linecolor="white"
+# Sets the border colour to white,
+# making every cell visually distinct.
+#
+# annot_kws
+# Controls the appearance of annotation text.
+# size=10 increases font size.
+# weight="bold" makes correlation values easier to read.
+#
+# cbar_kws
+# Customizes the color bar.
+# label adds the title "Correlation Coefficient".
+# shrink=0.85 slightly reduces the height of the color bar
+# so it fits proportionally with the figure.
+# =============================================================================
+
+# =============================================================================
+# plt.title(
+#     "Correlation Matrix of Vendor Sales Features",
+#     fontsize=20,
+#     fontweight="bold",
+#     pad=20
+# )
+#
+# Adds a professional title to the heatmap.
+# fontsize controls the title size.
+# fontweight="bold" emphasizes the title.
+# pad=20 adds extra spacing between the title and the heatmap.
+# =============================================================================
+
+# =============================================================================
+# plt.xticks(rotation=45, ha="right", fontsize=10)
+# Rotates x-axis labels by 45 degrees to prevent overlapping.
+# ha="right" right-aligns the labels after rotation.
+# fontsize controls the size of the feature names.
+# =============================================================================
+
+# =============================================================================
+# plt.yticks(rotation=0, fontsize=10)
+# Keeps y-axis labels horizontal for easier reading.
+# fontsize controls the font size of row labels.
+# =============================================================================
+
+# =============================================================================
+# plt.tight_layout()
+# Automatically adjusts spacing between the title,
+# axes, labels and the color bar.
+# Prevents overlapping and creates a clean layout.
+# =============================================================================
+
+# =============================================================================
+# plt.show()
+# Displays the completed heatmap.
+# Until plt.show() executes, the visualization exists only in memory.
+# This is the final step that renders the figure on the screen.
+# =============================================================================
+
+
+# =============================================================================
+# What is a Correlation Heatmap?
+#
+# A Correlation Heatmap is a graphical representation of the correlation
+# matrix where colours indicate the strength and direction of relationships
+# between numerical variables.
+#
+# Instead of reading dozens of numerical correlation values,
+# the colour intensity immediately highlights strong and weak relationships.
+# =============================================================================
+
+
+# =============================================================================
+# Correlation Value Interpretation
+#
+# +1.00  -> Perfect Positive Correlation
+# +0.70 to +0.99 -> Strong Positive Correlation
+# +0.30 to +0.69 -> Moderate Positive Correlation
+# -0.29 to +0.29 -> Weak or No Correlation
+# -0.30 to -0.69 -> Moderate Negative Correlation
+# -0.70 to -0.99 -> Strong Negative Correlation
+# -1.00  -> Perfect Negative Correlation
+# =============================================================================
+
+
+# =============================================================================
+# Why do we perform Correlation Analysis?
+#
+# • Understand relationships between numerical variables.
+# • Identify variables that move together.
+# • Detect multicollinearity (redundant features).
+# • Help in feature selection before Machine Learning.
+# • Discover hidden business patterns and dependencies.
+# • Improve model performance by removing highly correlated features.
+# =============================================================================
+
+
+# =============================================================================
+# Business Insights from the Heatmap
+#
+# • Dark Red cells indicate variables that increase together.
+# • Dark Blue cells indicate variables moving in opposite directions.
+# • White or light-coloured cells indicate weak or no relationship.
+# • Features with correlation greater than ±0.80 may contain similar
+#   information and should be investigated before model building.
+# • Correlation does NOT imply causation.
+#   Two variables can be highly correlated without one causing the other.
+# =============================================================================
+
+
+
+
+# =============================================================================
+# plt.figure(figsize=(10, 6))
+# Creates a new figure (canvas) for the scatter plot.
+# figsize=(10,6) sets the width to 10 inches and height to 6 inches.
+# A larger figure improves readability of data points, labels and legend.
+# =============================================================================
+
+# =============================================================================
+# sns.scatterplot(
+#     data=brand_performance,
+#     x="TotalSalesDollars",
+#     y="ProfitMargin",
+#     color="blue",
+#     label="All Brands",
+#     alpha=0.2
+# )
+#
+# Creates the first scatter plot showing every brand.
+# data=brand_performance specifies the DataFrame to visualize.
+# x="TotalSalesDollars" plots total sales on the horizontal axis.
+# y="ProfitMargin" plots profit margin on the vertical axis.
+# color="blue" colors all brands blue.
+# label="All Brands" adds an entry in the legend.
+# alpha=0.2 makes points highly transparent so overlapping points
+# become easier to identify in dense regions.
+# =============================================================================
+
+# =============================================================================
+# sns.scatterplot(
+#     data=target_brands,
+#     x="TotalSalesDollars",
+#     y="ProfitMargin",
+#     color="red",
+#     label="Target Brands"
+# )
+#
+# Creates another scatter plot on top of the previous one.
+# Only the filtered target brands are plotted.
+# color="red" highlights these brands from the rest.
+# label adds these points to the legend.
+# Overlaying the two scatter plots makes the selected brands
+# immediately distinguishable.
+# =============================================================================
+
+# =============================================================================
+# plt.axhline(
+#     high_margin_threshold,
+#     linestyle="--",
+#     color="black",
+#     label="High Margin Threshold"
+# )
+#
+# Draws a horizontal reference line.
+# axhline() creates a line parallel to the x-axis.
+# high_margin_threshold specifies the y-coordinate.
+# linestyle="--" creates a dashed line.
+# color="black" gives the threshold a neutral appearance.
+# label adds the threshold description to the legend.
+# This line separates high-margin brands from the rest.
+# =============================================================================
+
+# =============================================================================
+# plt.axvline(
+#     low_sales_threshold,
+#     linestyle="--",
+#     color="black",
+#     label="Low Sales Threshold"
+# )
+#
+# Draws a vertical reference line.
+# axvline() creates a line parallel to the y-axis.
+# low_sales_threshold specifies the x-coordinate.
+# The dashed black line marks the sales cutoff.
+# Brands to the left of this line are considered low-sales brands.
+# =============================================================================
+
+# =============================================================================
+# plt.xlabel("Total Sales ($)")
+# Labels the x-axis.
+# Indicates that the horizontal axis represents Total Sales in dollars.
+# =============================================================================
+
+# =============================================================================
+# plt.ylabel("Profit Margin (%)")
+# Labels the y-axis.
+# Indicates that the vertical axis represents Profit Margin percentage.
+# =============================================================================
+
+# =============================================================================
+# plt.title("Brands for Promotional or Pricing Adjustments")
+# Adds a descriptive title to the visualization.
+# Clearly communicates the business objective of the analysis.
+# =============================================================================
+
+# =============================================================================
+# plt.legend()
+# Displays the legend.
+# Helps distinguish All Brands, Target Brands,
+# High Margin Threshold and Low Sales Threshold.
+# =============================================================================
+
+# =============================================================================
+# plt.grid(True)
+# Enables grid lines.
+# Grid lines improve readability and make it easier to estimate values.
+# =============================================================================
+
+# =============================================================================
+# plt.show()
+# Renders and displays the completed scatter plot.
+# Until plt.show() executes, the figure exists only in memory.
+# =============================================================================
+
+
+# =============================================================================
+# What is a Scatter Plot?
+#
+# A scatter plot displays the relationship between two numerical variables.
+# Each point represents one observation (one brand in this case).
+# The x-coordinate represents Total Sales while the y-coordinate
+# represents Profit Margin.
+# Scatter plots are useful for identifying trends, clusters,
+# outliers and business opportunities.
+# =============================================================================
+
+
+# =============================================================================
+# Why is this Visualization Useful?
+#
+# • Compare sales performance with profitability.
+# • Identify brands that sell less but generate high profit margins.
+# • Highlight products requiring promotional campaigns.
+# • Detect unusual brands that differ from the majority.
+# • Support pricing and inventory decisions.
+# =============================================================================
+
+
+# =============================================================================
+# Business Interpretation of Each Region
+#
+# Top Left
+# • Low Sales
+# • High Profit Margin
+# • Ideal candidates for promotions or marketing campaigns.
+# • These brands are profitable but lack sufficient sales volume.
+#
+# Top Right
+# • High Sales
+# • High Profit Margin
+# • Best-performing brands.
+# • Continue current pricing and inventory strategy.
+#
+# Bottom Left
+# • Low Sales
+# • Low Profit Margin
+# • Weak-performing brands.
+# • Consider discontinuing, repricing or reducing inventory.
+#
+# Bottom Right
+# • High Sales
+# • Low Profit Margin
+# • Strong demand but low profitability.
+# • Pricing strategy or operational costs should be reviewed.
+# =============================================================================
+
+
+# =============================================================================
+# Business Goal of this Analysis
+#
+# This visualization helps management quickly identify brands that
+# deserve promotional efforts or pricing adjustments.
+#
+# Brands highlighted in red have:
+# • Lower-than-normal sales
+# • Higher-than-normal profit margins
+#
+# Increasing the sales volume of these brands could significantly
+# improve overall company profit without introducing new products.
+# =============================================================================
+
+# =============================================================================
+# plt.figure(figsize=(15, 5))
+# Creates a new figure (canvas) for the visualization.
+# figsize=(15,5) sets the figure width to 15 inches and height to 5 inches.
+# A wide figure provides enough space to display two bar charts side-by-side.
+# =============================================================================
+
+
+# =============================================================================
+# plt.subplot(1, 2, 1)
+# Divides the figure into a grid of subplots.
+# (1,2,1) means:
+#     1 row
+#     2 columns
+#     Activate the first subplot.
+# The first subplot will display the Top Vendors chart.
+# =============================================================================
+
+
+# =============================================================================
+# ax1 = sns.barplot(
+#     y=top_vendors.index,
+#     x=top_vendors.values,
+#     palette="Blues_r"
+# )
+#
+# Creates a horizontal bar chart.
+#
+# y=top_vendors.index
+# Uses vendor names as labels on the y-axis.
+#
+# x=top_vendors.values
+# Uses total sales as the length of each bar.
+#
+# palette="Blues_r"
+# Applies the reversed blue color palette.
+# The bars automatically receive different shades of blue,
+# creating a visually appealing professional chart.
+#
+# ax1 stores the axis object, allowing further customization.
+# =============================================================================
+
+
+# =============================================================================
+# plt.title("Top 10 Vendors by Sales")
+# Adds a title above the first subplot.
+# Clearly indicates that the chart displays the vendors
+# with the highest sales.
+# =============================================================================
+
+
+# =============================================================================
+# for bar in ax1.patches:
+#
+# Loops through every bar drawn in the chart.
+# patches is a collection containing all rectangle objects
+# (bars) created by sns.barplot().
+# This loop is used to place data labels beside every bar.
+# =============================================================================
+
+
+# =============================================================================
+# ax1.text(
+#     bar.get_width() + (bar.get_width()*0.02),
+#     bar.get_y() + bar.get_height()/2,
+#     format_dollars(bar.get_width()),
+#     ha="left",
+#     va="center",
+#     fontsize=10,
+#     color="black"
+# )
+#
+# Writes text beside every bar.
+#
+# bar.get_width()
+# Returns the numerical value represented by the bar.
+#
+# +(bar.get_width()*0.02)
+# Moves the text slightly to the right of the bar
+# (approximately 2% extra spacing).
+#
+# bar.get_y()
+# Returns the starting vertical position of the bar.
+#
+# bar.get_height()/2
+# Moves the label to the vertical center of the bar.
+#
+# format_dollars()
+# Converts numerical values into formatted dollar values
+# such as:
+#     2500000
+# becomes
+#     $2.50M
+#
+# ha="left"
+# Left-aligns the text.
+#
+# va="center"
+# Vertically centers the label.
+#
+# fontsize=10
+# Controls the font size.
+#
+# color="black"
+# Displays labels in black for better readability.
+# =============================================================================
+
+
+# =============================================================================
+# plt.subplot(1, 2, 2)
+# Activates the second subplot in the figure.
+# This subplot will display the Top Brands chart.
+# =============================================================================
+
+
+# =============================================================================
+# ax2 = sns.barplot(
+#     y=top_brands.index.astype(str),
+#     x=top_brands.values,
+#     palette="Reds_r"
+# )
+#
+# Creates another horizontal bar chart.
+#
+# y=top_brands.index.astype(str)
+# Uses brand names as y-axis labels.
+# astype(str) converts labels into strings,
+# ensuring proper display.
+#
+# x=top_brands.values
+# Uses total sales as the bar length.
+#
+# palette="Reds_r"
+# Applies the reversed red color palette,
+# making this chart visually distinct from the vendor chart.
+#
+# ax2 stores the second axis object.
+# =============================================================================
+
+
+# =============================================================================
+# plt.title("Top 10 Brands by Sales")
+# Adds a descriptive title to the second subplot.
+# =============================================================================
+
+
+# =============================================================================
+# for bar in ax2.patches:
+#
+# Iterates through every bar in the second chart.
+# Used to add sales value labels beside each brand.
+# =============================================================================
+
+
+# =============================================================================
+# ax2.text(
+#     bar.get_width() + (bar.get_width()*0.02),
+#     bar.get_y() + bar.get_height()/2,
+#     format_dollars(bar.get_width()),
+#     ha="left",
+#     va="center",
+#     fontsize=10,
+#     color="black"
+# )
+#
+# Places formatted sales values beside every brand bar.
+# The logic is identical to the vendor chart.
+# Each bar receives a readable dollar label.
+# =============================================================================
+
+
+# =============================================================================
+# plt.tight_layout()
+# Automatically adjusts spacing between the two subplots.
+# Prevents titles, labels and bars from overlapping.
+# Creates a cleaner and more professional layout.
+# =============================================================================
+
+
+# =============================================================================
+# plt.show()
+# Displays the completed visualization.
+# Until plt.show() executes,
+# the plots remain stored only in memory.
+# =============================================================================
+
+
+# =============================================================================
+# What is a Horizontal Bar Chart?
+#
+# A horizontal bar chart compares categorical variables
+# using the length of horizontal bars.
+# Categories appear on the y-axis,
+# while numerical values appear on the x-axis.
+#
+# Horizontal bar charts are preferred when category names
+# are long because they remain easy to read.
+# =============================================================================
+
+
+# =============================================================================
+# Why use Two Subplots?
+#
+# Instead of creating two separate figures,
+# subplots allow multiple related visualizations
+# to appear within one figure.
+#
+# This makes comparisons faster and improves presentation quality.
+# =============================================================================
+
+
+# =============================================================================
+# Business Insights
+#
+# • The first chart identifies the highest revenue-generating vendors.
+# • The second chart identifies the highest revenue-generating brands.
+# • Dollar labels eliminate the need to estimate values from the axis.
+# • Side-by-side comparison helps understand whether sales concentration
+#   is driven by specific vendors, specific brands, or both.
+# • These visualizations assist management in identifying
+#   key contributors to overall business revenue.
+# =============================================================================
+
+
+# =============================================================================
+# fig, ax1 = plt.subplots(figsize=(10, 6))
+#
+# Creates a new matplotlib figure and one primary axis.
+#
+# plt.subplots() is preferred over plt.figure() because it returns:
+#     fig  -> Entire figure object
+#     ax1  -> First plotting axis
+#
+# figsize=(10,6) creates a figure that is
+# 10 inches wide and 6 inches tall.
+#
+# Since this visualization uses two y-axes (bar + line),
+# creating axes explicitly makes customization easier.
+# =============================================================================
+
+
+# =============================================================================
+# sns.barplot(
+#     x=top_vendors["VendorName"],
+#     y=top_vendors["Purchase_Contribution%"],
+#     palette="mako",
+#     ax=ax1
+# )
+#
+# Creates a bar chart showing each vendor's contribution
+# toward total purchase dollars.
+#
+# x=
+# Vendor names become categorical labels.
+#
+# y=
+# Purchase Contribution percentages become bar heights.
+#
+# palette="mako"
+# Uses Seaborn's professional blue gradient palette.
+#
+# ax=ax1
+# Draws the plot on the first axis created earlier.
+# =============================================================================
+
+
+# =============================================================================
+# for i, value in enumerate(top_vendors["Purchase_Contribution%"]):
+#
+# Iterates over every purchase contribution value.
+#
+# enumerate() returns:
+#
+# i      -> Position of the bar (0,1,2...)
+# value  -> Actual Purchase Contribution percentage
+#
+# Used to place value labels on every bar.
+# =============================================================================
+
+
+# =============================================================================
+# ax1.text(
+#     i,
+#     value-1,
+#     str(round(value,2))+"%",
+#     ha="center",
+#     fontsize=10,
+#     color="white"
+# )
+#
+# Adds text labels directly on top of each bar.
+#
+# i
+# Determines the horizontal location.
+#
+# value-1
+# Places the label slightly below the bar's top
+# so it appears inside the bar.
+#
+# round(value,2)
+# Rounds the percentage to two decimal places.
+#
+# +"%"
+# Adds the percentage symbol.
+#
+# ha="center"
+# Horizontally centers the text.
+#
+# fontsize=10
+# Controls font size.
+#
+# color="white"
+# White text contrasts well against dark bars.
+# =============================================================================
+
+
+# =============================================================================
+# ax2 = ax1.twinx()
+#
+# Creates a second y-axis sharing the same x-axis.
+#
+# twinx() allows two different scales to be shown
+# on one graph.
+#
+# Left axis:
+# Purchase Contribution %
+#
+# Right axis:
+# Cumulative Contribution %
+#
+# This combination forms a Pareto Chart.
+# =============================================================================
+
+
+# =============================================================================
+# ax2.plot(
+#     top_vendors["VendorName"],
+#     top_vendors["Cumulative_Contribution%"],
+#     color="red",
+#     marker="o",
+#     linestyle="dashed",
+#     label="Cumulative Contribution %"
+# )
+#
+# Creates a line chart representing cumulative contribution.
+#
+# x=
+# Vendor names.
+#
+# y=
+# Running cumulative percentage.
+#
+# color="red"
+# Makes the line stand out.
+#
+# marker="o"
+# Draws circular markers at every vendor.
+#
+# linestyle="dashed"
+# Creates a dashed line.
+#
+# label=
+# Adds legend information.
+# =============================================================================
+
+
+# =============================================================================
+# ax1.set_xticklabels(
+#     top_vendors["VendorName"],
+#     rotation=90
+# )
+#
+# Displays vendor names on the x-axis.
+#
+# rotation=90 rotates labels vertically,
+# preventing long names from overlapping.
+# =============================================================================
+
+
+# =============================================================================
+# ax1.set_ylabel(
+#     "Purchase Contribution %",
+#     color="blue"
+# )
+#
+# Labels the left y-axis.
+#
+# This axis corresponds to the blue bars.
+# =============================================================================
+
+
+# =============================================================================
+# ax2.set_ylabel(
+#     "Cumulative Contribution %",
+#     color="red"
+# )
+#
+# Labels the right y-axis.
+#
+# This axis corresponds to the red cumulative line.
+# =============================================================================
+
+
+# =============================================================================
+# ax1.set_xlabel("Vendors")
+#
+# Labels the x-axis.
+#
+# Indicates that each category represents one vendor.
+# =============================================================================
+
+
+# =============================================================================
+# ax1.set_title(
+#     "Pareto Chart: Vendor Contribution to Total Purchases"
+# )
+#
+# Adds the chart title.
+#
+# Clearly communicates the business purpose
+# of the visualization.
+# =============================================================================
+
+
+# =============================================================================
+# ax2.axhline(
+#     y=100,
+#     color="gray",
+#     linestyle="dashed",
+#     alpha=0.7
+# )
+#
+# Draws a horizontal reference line at 100%.
+#
+# y=100 represents complete cumulative contribution.
+#
+# linestyle="dashed"
+# Creates a reference guideline.
+#
+# alpha=0.7
+# Makes the line partially transparent.
+# =============================================================================
+
+
+# =============================================================================
+# ax2.legend(loc="upper right")
+#
+# Displays the legend.
+#
+# loc="upper right"
+# Positions it in the upper-right corner.
+# =============================================================================
+
+
+# =============================================================================
+# plt.show()
+#
+# Displays the completed Pareto chart.
+#
+# Until plt.show() executes,
+# the visualization remains in memory.
+# =============================================================================
+
+
+# =============================================================================
+# What is a Pareto Chart?
+#
+# A Pareto Chart combines:
+#
+# • A Bar Chart
+# • A Cumulative Line Chart
+#
+# The bars show the contribution of each category,
+# while the line shows the running cumulative percentage.
+#
+# It is based on the Pareto Principle (80/20 Rule),
+# which states that roughly 80% of outcomes often come
+# from about 20% of the causes.
+# =============================================================================
+
+
+# =============================================================================
+# Business Insights
+#
+# • Identifies the vendors contributing most to total purchases.
+# • Highlights whether purchases are concentrated among a few vendors.
+# • Helps prioritize supplier relationships.
+# • Assists procurement teams in negotiating with key vendors.
+# • Useful for supplier risk analysis and spend optimization.
+# • Supports strategic decisions by identifying the vendors
+#   responsible for the majority of purchasing expenditure.
+# =============================================================================
