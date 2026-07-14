@@ -19,6 +19,7 @@ This project performs end-to-end analytics on a large-scale enterprise procureme
 ## Key Highlights
 
 ### Data Engineering
+
 - Data ingestion from multiple relational tables
 - Data cleaning and preprocessing
 - Missing value handling
